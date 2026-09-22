@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { jsPDF } from "jspdf";
 import {
   decisionTree,
   nextStep,
@@ -294,6 +295,11 @@ export function MotionDecisionWizard() {
 
 function Result({ result, answers, onRestart }: { result: LeafNode; answers: Answers; onRestart: () => void }) {
   const color = riskLevelColor(result.riskLevel);
+  const posture = result.riskLevel === "GREEN"
+    ? "Use AI for bounded drafting support with ordinary attorney review."
+    : result.riskLevel === "RED"
+      ? "Keep substantive drafting human-led unless the safeguards below are in place."
+      : "Use AI only with enhanced safeguards and full independent verification.";
   const extraActions = [
     answers.jurisdictionSpecificity !== "yes" && "Confirm the tool reflects current local rules, practice-area authority, and judge-specific preferences.",
     answers.disclosure !== "yes" && "Check the current judge and jurisdiction rules for AI disclosure or certification before filing.",
@@ -302,6 +308,45 @@ function Result({ result, answers, onRestart }: { result: LeafNode; answers: Ans
     answers.operations !== "yes" && "Confirm the expected time savings and workflow integration justify the firm's cost and learning investment.",
     answers.liability !== "yes" && "Ask the malpractice carrier and review client/billing agreements for AI-related requirements.",
   ].filter((action): action is string => Boolean(action));
+
+  function downloadPlan() {
+    const pdf = new jsPDF();
+    const margin = 18;
+    const width = 174;
+    let y = 20;
+    const addText = (text: string, size = 10, bold = false) => {
+      pdf.setFont("helvetica", bold ? "bold" : "normal");
+      pdf.setFontSize(size);
+      const lines = pdf.splitTextToSize(text, width);
+      pdf.text(lines, margin, y);
+      y += lines.length * (size * 0.48) + 5;
+      if (y > 274) {
+        pdf.addPage();
+        y = 20;
+      }
+    };
+    const addList = (items: string[]) => items.forEach((item) => addText(`• ${item}`));
+
+    addText("Motion AI Use Plan", 20, true);
+    addText(`Risk level: ${riskLabels[result.riskLevel]}`, 12, true);
+    addText(posture);
+    addText("Approved uses", 14, true);
+    addList(result.riskLevel === "RED"
+      ? ["Create a neutral outline from attorney notes.", "Organize a checklist or summarize attorney-verified materials.", "Improve grammar or formatting without changing legal meaning."]
+      : ["Create an outline from attorney-provided headings.", "Organize notes, discovery, or a verification checklist.", "Improve grammar, clarity, and neutral phrasing.", "Summarize authorities that the attorney has already verified."]);
+    addText("Do not delegate", 14, true);
+    addList(["Legal strategy or selection of authorities.", "Facts, citations, quotations, or holdings without independent verification.", "Final filing approval or decisions about confidential information."]);
+    addText("Suggested workflow", 14, true);
+    addList(["Prepare: confirm the approved tool, data terms, and current court rules.", "Constrain: provide only the permitted task and attorney-controlled facts.", "Generate: request an outline, checklist, summary, or limited draft.", "Verify: check every citation, quotation, fact, and legal proposition against trusted sources.", "Review and file: complete attorney review and any required disclosure or certification."]);
+    addText("Prompt template", 14, true);
+    addText("You are assisting with organization and editing only. Use only the facts and authorities I provide. Do not invent facts, citations, quotations, or legal propositions. Flag missing information and uncertainty. Do not make strategic legal decisions. Return a structured outline and a list of items requiring attorney verification.");
+    addText("Verification checklist", 14, true);
+    addList(["Every citation was independently located and reviewed.", "Every quotation matches the source.", "Every factual statement matches the record.", "Current local rules and AI standing orders were checked.", "A qualified attorney approved the final filing."]);
+    addText("Reassess if", 14, true);
+    addList(["The motion becomes dispositive or emergency.", "New confidential or privileged material is added.", "There is no longer enough time for full verification.", "The judge or jurisdiction issues a new AI requirement."]);
+    addText("Disclaimer: This is an internal risk-triage framework, not legal advice. The firm remains responsible for compliance, supervision, verification, and filing decisions.");
+    pdf.save("motion-ai-use-plan.pdf");
+  }
 
   return (
     <section className="result" id="readout" aria-live="polite">
@@ -322,6 +367,7 @@ function Result({ result, answers, onRestart }: { result: LeafNode; answers: Ans
         <ol>{Object.values(answers).map((answer, index) => <li key={`${index}-${answer}`}>{answer}</li>)}</ol>
       </details>
       <button className="primary-button" onClick={onRestart} type="button">Start over</button>
+      <button className="secondary-button" onClick={downloadPlan} type="button">Download AI use plan (PDF)</button>
     </section>
   );
 }
