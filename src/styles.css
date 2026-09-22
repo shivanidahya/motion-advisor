@@ -47,5 +47,7 @@ h2 { font-size:35px; margin-bottom:12px; }
 .answers li { margin-top:8px; }
 .primary-button { border:0; background:var(--teal); color:#fff; padding:16px 22px; cursor:pointer; margin-top:24px; font-weight:600; }
 .primary-button:hover { background:var(--teal-dark); }
+.secondary-button { border:1px solid var(--teal); color:var(--teal-dark); background:transparent; padding:15px 21px; cursor:pointer; margin:24px 0 0 10px; font-weight:600; }
+.secondary-button:hover { background:#eaf5f2; }
 .result { border-top:2px solid var(--teal); margin-top:48px; padding-top:30px; }
-@media (max-width:800px) { .shell{padding:22px 18px 50px} header{margin-bottom:40px; display:block}.utility{margin-top:12px}.hero{display:block;margin-bottom:38px}.intro{margin-top:25px}.workspace{display:block}.aside{padding:30px 0 0}.form-panel{padding:25px 20px}.progress span{display:none} }
+@media (max-width:800px) { .shell{padding:22px 18px 50px} header{margin-bottom:40px; display:block}.utility{margin-top:12px}.hero{display:block;margin-bottom:38px}.intro{margin-top:25px}.workspace{display:block}.aside{padding:30px 0 0}.form-panel{padding:25px 20px}.progress span{display:none}.secondary-button{margin-left:0; display:block} }
