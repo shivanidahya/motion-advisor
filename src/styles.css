@@ -30,6 +30,7 @@ h2 { font-size:35px; margin-bottom:12px; }
 .submit-row { display:flex; align-items:center; gap:16px; margin-top:30px; }
 .primary-button:disabled { background:#aabbb7; cursor:not-allowed; transform:none; }
 .missing-note { color:var(--muted); font-size:12px; }
+.calculation-error { color:#b42318; font-size:13px; line-height:1.5; margin:14px 0 0; }
 .aside { padding:24px 0 0 10px; }
 .aside h3 { font-size:18px; margin:0 0 14px; }
 .aside p { color:var(--muted); line-height:1.6; font-size:13px; }

@@ -162,6 +162,7 @@ const riskLabels = {
 export function MotionDecisionWizard() {
   const [answers, setAnswers] = useState<Answers>({});
   const [result, setResult] = useState<LeafNode | null>(null);
+  const [calculationError, setCalculationError] = useState("");
 
   const groupedQuestions = useMemo(
     () => questions.reduce<Record<string, Question[]>>((groups, question) => {
@@ -174,9 +175,19 @@ export function MotionDecisionWizard() {
   function updateAnswer(id: string, value: string) {
     setAnswers((current) => ({ ...current, [id]: value }));
     setResult(null);
+    setCalculationError("");
   }
 
   function calculateRecommendation() {
+    if (missingAnswers.length > 0) {
+      document.getElementById(`question-${missingAnswers[0].id}`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      setCalculationError("Answer the highlighted question before viewing your recommendation.");
+      return;
+    }
+
     let nodeId = START_NODE_ID;
     const treeLabels = answers.legalAnalysis === "yes"
       ? [
@@ -195,14 +206,21 @@ export function MotionDecisionWizard() {
             : []),
         ];
 
-    for (const label of treeLabels) {
-      nodeId = nextStep(nodeId, label).id;
-    }
+    try {
+      for (const label of treeLabels) {
+        nodeId = nextStep(nodeId, label).id;
+      }
 
-    const current = decisionTree[nodeId];
-    if (current.type === "leaf") {
-      setResult(current);
-      document.getElementById("readout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const current = decisionTree[nodeId];
+      if (current.type === "leaf") {
+        setResult(current);
+        setCalculationError("");
+        document.getElementById("readout")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        setCalculationError("The decision tree did not reach a recommendation. Review your answers and try again.");
+      }
+    } catch {
+      setCalculationError("We could not match those answers to a recommendation. Please review the motion and tool answers and try again.");
     }
   }
 
@@ -239,7 +257,7 @@ export function MotionDecisionWizard() {
             <section className="question-section" key={section}>
               <div className="section-label">{section}</div>
               {sectionQuestions.map((question) => (
-                <fieldset className="field" key={question.id}>
+                <fieldset className="field" id={`question-${question.id}`} key={question.id}>
                   <legend>{question.prompt}</legend>
                   {question.helper && <p className="hint">{question.helper}</p>}
                   <div className="options">
@@ -267,6 +285,7 @@ export function MotionDecisionWizard() {
             </button>
             {missingAnswers.length > 0 && <span className="missing-note">{missingAnswers.length} question{missingAnswers.length === 1 ? "" : "s"} left</span>}
           </div>
+          {calculationError && <p className="calculation-error" role="alert">{calculationError}</p>}
 
           {result && <Result result={result} answers={answers} onRestart={restart} />}
         </section>
