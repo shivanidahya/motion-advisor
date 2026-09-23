@@ -10,144 +10,159 @@ import {
 
 type Answers = Record<string, string>;
 
+type Option = { value: string; label: string };
+
 type Question = {
   id: string;
   section: string;
   prompt: string;
   helper?: string;
-  options: { value: string; label: string }[];
+  options: Option[];
+  /** Only shown when this returns true (or is omitted). Evaluated against answers so far. */
+  showIf?: (answers: Answers) => boolean;
 };
 
 const questions: Question[] = [
   {
     id: "legalAnalysis",
     section: "Motion and task",
-    prompt: "Does this motion require legal analysis or citation of case law or statutes?",
-    helper: "Examples of substantive work include motions to dismiss, summary judgment, motions in limine, and injunctions.",
+    prompt: "Does this need legal analysis or citations?",
+    helper: "Substantive work includes motions to dismiss, summary judgment, motions in limine, and injunctions.",
     options: [
-      { value: "no", label: "No — routine or administrative" },
-      { value: "yes", label: "Yes — substantive legal argument" },
+      { value: "no", label: "No — routine or admin" },
+      { value: "yes", label: "Yes — substantive argument" },
     ],
   },
   {
     id: "motionType",
     section: "Motion and task",
-    prompt: "What type of motion are you preparing?",
+    prompt: "What type of motion is this?",
+    helper: "Examples: extension, compel discovery, dismissal, TRO.",
+    showIf: (a) => a.legalAnalysis === "yes",
     options: [
-      { value: "routine", label: "Routine or procedural (extension, scheduling, appearance)" },
-      { value: "discovery", label: "Discovery or evidentiary (compel, protective order, motion in limine)" },
-      { value: "dispositive", label: "Dispositive (dismissal or summary judgment)" },
-      { value: "emergency", label: "Emergency or injunctive relief" },
-      { value: "other", label: "Other substantive motion" },
+      { value: "discovery", label: "Discovery / evidentiary" },
+      { value: "dispositive", label: "Dispositive" },
+      { value: "emergency", label: "Emergency / injunctive" },
+      { value: "other", label: "Other substantive" },
     ],
   },
   {
     id: "taskScope",
     section: "Motion and task",
     prompt: "What would you ask AI to do?",
-    helper: "Lower-risk uses include first-draft boilerplate, organizing discovery, and summarizing attorney-provided material. Higher-risk uses include citation-heavy argument or filing-ready text.",
+    helper: "Outlining is lower-risk than generating filing-ready argument.",
+    showIf: (a) => a.legalAnalysis === "yes",
     options: [
-      { value: "bounded", label: "Outline, organize notes, summarize, or improve phrasing" },
-      { value: "substantive", label: "Generate substantive legal argument or filing-ready language" },
+      { value: "bounded", label: "Outline / organize / summarize" },
+      { value: "substantive", label: "Generate substantive argument" },
     ],
   },
   {
     id: "confidentialInfo",
     section: "Confidentiality and vendor",
-    prompt: "Will confidential client information enter the AI tool?",
-    helper: "Consider privilege, work product, personal data, trade secrets, sealed facts, and client-identifying information.",
+    prompt: "Any confidential client info involved?",
+    helper: "Think privilege, work product, personal data, sealed facts.",
+    showIf: (a) => a.legalAnalysis === "no",
     options: [
-      { value: "no", label: "No — information is public, redacted, or non-sensitive" },
-      { value: "yes", label: "Yes — confidential or restricted information" },
+      { value: "no", label: "No" },
+      { value: "yes", label: "Yes" },
     ],
   },
   {
     id: "dataAgreement",
     section: "Confidentiality and vendor",
-    prompt: "Does the firm have a vendor agreement that addresses confidentiality and data handling?",
-    helper: "Look for no training on inputs, retention limits, encryption, access controls, and third-party sharing. Small firms and solos should not assume a consumer tool provides these protections.",
+    prompt: "Does your vendor agreement cover confidentiality?",
+    helper: "Look for no training on inputs, retention limits, encryption.",
+    showIf: (a) => a.legalAnalysis === "no" && a.confidentialInfo === "yes",
     options: [
-      { value: "yes", label: "Yes — the terms are reviewed and appropriate" },
-      { value: "no", label: "No or not sure" },
+      { value: "yes", label: "Yes, reviewed" },
+      { value: "no", label: "No / not sure" },
     ],
   },
   {
     id: "toolGrounding",
     section: "Accuracy and reliability",
-    prompt: "Is the tool grounded in a verified legal database with citation checking?",
-    helper: "Compare a legal-specific tool such as Westlaw CoCounsel or Lexis+ AI with a general-purpose LLM that has no legal verification layer.",
+    prompt: "Is the tool citation-verified, not just a general LLM?",
+    helper: "E.g., Westlaw CoCounsel or Lexis+ AI vs. a general-purpose chatbot.",
+    showIf: (a) => a.legalAnalysis === "yes",
     options: [
-      { value: "yes", label: "Yes — legal-specific and citation-grounded" },
-      { value: "no", label: "No — general-purpose or unverified tool" },
+      { value: "yes", label: "Yes — legal-specific" },
+      { value: "no", label: "No — general LLM" },
     ],
   },
   {
     id: "stakes",
     section: "Accuracy and reliability",
-    prompt: "What are the stakes if the motion is wrong?",
-    helper: "High stakes include dispositive motions, injunctions, appeals, or anything likely to end or substantially reshape the case.",
+    prompt: "What's at stake if this motion is wrong?",
+    helper: "High: dispositive, emergency, or case-changing motions.",
+    showIf: (a) => a.legalAnalysis === "yes",
     options: [
-      { value: "low", label: "Lower stakes or routine substantive motion" },
-      { value: "high", label: "High stakes, dispositive, emergency, or case-changing" },
+      { value: "low", label: "Lower / routine" },
+      { value: "high", label: "High / case-changing" },
     ],
   },
   {
     id: "jurisdictionSpecificity",
     section: "Accuracy and reliability",
-    prompt: "Can the tool account for the relevant jurisdiction, practice area, recent authority, and judge-specific preferences?",
+    prompt: "Does it reflect your jurisdiction and judge's preferences?",
+    showIf: (a) => a.legalAnalysis === "yes",
     options: [
-      { value: "yes", label: "Yes — the scope is current and appropriately specific" },
-      { value: "no", label: "No or not sure" },
+      { value: "yes", label: "Yes, current & specific" },
+      { value: "no", label: "No / not sure" },
     ],
   },
   {
     id: "verificationCapacity",
     section: "Professional responsibility",
-    prompt: "Can an attorney independently verify every citation, quotation, factual claim, and legal proposition before filing?",
-    helper: "The duty to verify does not move to the tool. A solo practitioner must plan for this review personally if there is no second reviewer.",
+    prompt: "Can you verify every citation before filing?",
+    helper: "The duty to verify doesn't move to the tool.",
+    showIf: (a) => a.legalAnalysis === "yes" && a.stakes === "low",
     options: [
-      { value: "yes", label: "Yes — sufficient time and expertise are available" },
-      { value: "no", label: "No — the deadline or staffing makes that unrealistic" },
+      { value: "yes", label: "Yes, time & expertise available" },
+      { value: "no", label: "No — unrealistic deadline/staffing" },
     ],
   },
   {
     id: "disclosure",
     section: "Court and ethics rules",
-    prompt: "Have you checked the current judge and jurisdiction rules for AI disclosure or certification?",
-    helper: "Standing orders change often. Some courts require disclosure of AI use or certification that citations were human-verified.",
+    prompt: "Checked current AI disclosure rules for this judge?",
+    helper: "Standing orders on AI use change often — check the latest.",
+    showIf: (a) => a.legalAnalysis === "yes" && a.stakes === "high",
     options: [
-      { value: "yes", label: "Yes — no additional requirement, or the requirement is understood" },
-      { value: "no", label: "No or unclear — I need to check the current rules" },
+      { value: "yes", label: "Yes / none required" },
+      { value: "no", label: "No / unclear" },
     ],
   },
   {
     id: "competence",
     section: "Court and ethics rules",
-    prompt: "Can the responsible attorney competently supervise this technology and its output?",
-    helper: "Consider Model Rule 1.1, ABA Formal Opinion 512, confidentiality under Model Rule 1.6, and candor to the tribunal under Model Rule 3.3.",
+    prompt: "Can you competently supervise this tool's output?",
+    helper: "Model Rule 1.1, ABA Formal Opinion 512, Rules 1.6 and 3.3.",
+    showIf: (a) => a.legalAnalysis === "yes",
     options: [
-      { value: "yes", label: "Yes — the attorney understands the tool's limits and can supervise it" },
-      { value: "no", label: "No or not sure" },
+      { value: "yes", label: "Yes" },
+      { value: "no", label: "No / not sure" },
     ],
   },
   {
     id: "operations",
     section: "Firm operations and exposure",
-    prompt: "Do the time, cost, workflow, and learning investment make sense for this firm?",
-    helper: "Weigh subscription cost against time saved, integration with practice-management/document/e-filing systems, and the learning curve.",
+    prompt: "Worth the cost, time, and learning curve?",
+    showIf: (a) => a.legalAnalysis === "yes",
     options: [
-      { value: "yes", label: "Yes — the workflow has a clear, manageable benefit" },
-      { value: "no", label: "No or not yet" },
+      { value: "yes", label: "Yes, clear benefit" },
+      { value: "no", label: "No / not yet" },
     ],
   },
   {
     id: "liability",
     section: "Firm operations and exposure",
-    prompt: "Has the firm considered malpractice and client-fee implications of AI use?",
-    helper: "Check whether malpractice coverage addresses AI-related errors and whether client agreements or billing practices require disclosure when AI materially reduces drafting time.",
+    prompt: "Considered malpractice and billing implications?",
+    helper: "Check coverage for AI errors and client/billing disclosure needs.",
+    showIf: (a) => a.legalAnalysis === "yes",
     options: [
-      { value: "yes", label: "Yes — insurance, client communication, and billing are addressed" },
-      { value: "no", label: "No or not sure" },
+      { value: "yes", label: "Yes, addressed" },
+      { value: "no", label: "No / not sure" },
     ],
   },
 ];
@@ -162,32 +177,39 @@ const riskLabels = {
 export function MotionDecisionWizard() {
   const [answers, setAnswers] = useState<Answers>({});
   const [result, setResult] = useState<LeafNode | null>(null);
-  const [calculationError, setCalculationError] = useState("");
 
-  const groupedQuestions = useMemo(
-    () => questions.reduce<Record<string, Question[]>>((groups, question) => {
-      (groups[question.section] ??= []).push(question);
-      return groups;
-    }, {}),
-    [],
+  // Only the questions that apply given answers so far, in order.
+  const visibleQuestions = useMemo(
+    () => questions.filter((q) => !q.showIf || q.showIf(answers)),
+    [answers],
   );
 
-  function updateAnswer(id: string, value: string) {
+  const currentQuestion = visibleQuestions.find((q) => !(q.id in answers)) ?? null;
+  const answeredCount = visibleQuestions.filter((q) => q.id in answers).length;
+  const totalCount = visibleQuestions.length;
+  const progressPct = totalCount === 0 ? 0 : Math.round((answeredCount / totalCount) * 100);
+
+  function selectAnswer(id: string, value: string) {
     setAnswers((current) => ({ ...current, [id]: value }));
     setResult(null);
-    setCalculationError("");
+  }
+
+  function goBack() {
+    setResult(null);
+    for (let i = visibleQuestions.length - 1; i >= 0; i--) {
+      const id = visibleQuestions[i].id;
+      if (id in answers) {
+        setAnswers((current) => {
+          const copy = { ...current };
+          delete copy[id];
+          return copy;
+        });
+        return;
+      }
+    }
   }
 
   function calculateRecommendation() {
-    if (missingAnswers.length > 0) {
-      document.getElementById(`question-${missingAnswers[0].id}`)?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      setCalculationError("Answer the highlighted question before viewing your recommendation.");
-      return;
-    }
-
     let nodeId = START_NODE_ID;
     const treeLabels = answers.legalAnalysis === "yes"
       ? [
@@ -206,21 +228,14 @@ export function MotionDecisionWizard() {
             : []),
         ];
 
-    try {
-      for (const label of treeLabels) {
-        nodeId = nextStep(nodeId, label).id;
-      }
+    for (const label of treeLabels) {
+      nodeId = nextStep(nodeId, label).id;
+    }
 
-      const current = decisionTree[nodeId];
-      if (current.type === "leaf") {
-        setResult(current);
-        setCalculationError("");
-        document.getElementById("readout")?.scrollIntoView({ behavior: "smooth", block: "start" });
-      } else {
-        setCalculationError("The decision tree did not reach a recommendation. Review your answers and try again.");
-      }
-    } catch {
-      setCalculationError("We could not match those answers to a recommendation. Please review the motion and tool answers and try again.");
+    const current = decisionTree[nodeId];
+    if (current.type === "leaf") {
+      setResult(current);
+      document.getElementById("readout")?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }
 
@@ -229,8 +244,6 @@ export function MotionDecisionWizard() {
     setResult(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
-
-  const missingAnswers = questions.filter((question) => !answers[question.id]);
 
   return (
     <main className="shell">
@@ -242,63 +255,74 @@ export function MotionDecisionWizard() {
       <section className="hero">
         <h1>Should AI help write your <em>motion?</em></h1>
         <p className="intro">
-          Work through the factors that matter for a small firm or solo practice.
-          The result is a risk-triage framework, not legal advice.
+          Answer a few quick questions. We'll only ask what's relevant to your situation.
         </p>
       </section>
 
       <div className="workspace">
         <section className="form-panel">
-          <div className="eyebrow">Step 01 / Make the choice</div>
-          <h2>Tell us what you&apos;re working with.</h2>
-          <p className="sub">Choose one answer in each section. You can scroll back and change any response before viewing the recommendation.</p>
-
-          {Object.entries(groupedQuestions).map(([section, sectionQuestions], sectionIndex) => (
-            <section className="question-section" key={section}>
-              <div className="section-heading">
-                <span className="section-number">0{sectionIndex + 1}</span>
-                <div>
-                  <div className="section-label">{section}</div>
-                  <p>{sectionQuestions.length} questions</p>
-                </div>
+          {!result && (
+            <>
+              <div className="progress-track">
+                <div className="progress-fill" style={{ width: `${progressPct}%` }} />
               </div>
-              {sectionQuestions.map((question, questionIndex) => (
-                <fieldset className="field" id={`question-${question.id}`} key={question.id}>
-                  <div className="question-meta">Question {String(questionIndex + 1).padStart(2, "0")}</div>
-                  <legend>{question.prompt}</legend>
-                  {question.helper && <p className="hint">{question.helper}</p>}
-                  <div className="options">
-                    {question.options.map((option) => (
-                      <label className={`option ${answers[question.id] === option.value ? "selected" : ""}`} key={option.value}>
-                        <input
-                          checked={answers[question.id] === option.value}
-                          name={question.id}
-                          onChange={() => updateAnswer(question.id, option.value)}
-                          type="radio"
-                          value={option.value}
-                        />
-                        <span>{option.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                </fieldset>
-              ))}
-            </section>
-          ))}
+              <div className="progress-label">
+                {currentQuestion ? `Question ${answeredCount + 1} of ${totalCount}` : "Review your answers"}
+              </div>
+            </>
+          )}
 
-          <div className="submit-row">
-            <button className="primary-button" disabled={missingAnswers.length > 0} onClick={calculateRecommendation} type="button">
-              See my recommendation <span aria-hidden="true">→</span>
-            </button>
-            {missingAnswers.length > 0 && <span className="missing-note">{missingAnswers.length} question{missingAnswers.length === 1 ? "" : "s"} left</span>}
-          </div>
-          {calculationError && <p className="calculation-error" role="alert">{calculationError}</p>}
+          {currentQuestion && (
+            <div className="step" key={currentQuestion.id}>
+              <div className="eyebrow">{currentQuestion.section}</div>
+              <h2>{currentQuestion.prompt}</h2>
+              {currentQuestion.helper && <p className="hint">{currentQuestion.helper}</p>}
+              <div className="options chip-grid">
+                {currentQuestion.options.map((option) => (
+                  <button
+                    className="option chip"
+                    key={option.value}
+                    onClick={() => selectAnswer(currentQuestion.id, option.value)}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {answeredCount > 0 && (
+                <button className="back-link" onClick={goBack} type="button">← Back</button>
+              )}
+            </div>
+          )}
+
+          {!currentQuestion && !result && (
+            <div className="step">
+              <div className="eyebrow">Almost done</div>
+              <h2>Here's what you told us.</h2>
+              <div className="review-chips">
+                {visibleQuestions.map((q) => (
+                  <div className="review-chip" key={q.id}>
+                    <span className="review-chip-q">{q.prompt}</span>
+                    <span className="review-chip-a">
+                      {q.options.find((o) => o.value === answers[q.id])?.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="submit-row">
+                <button className="primary-button" onClick={calculateRecommendation} type="button">
+                  See my recommendation <span aria-hidden="true">→</span>
+                </button>
+                <button className="back-link" onClick={goBack} type="button">← Back</button>
+              </div>
+            </div>
+          )}
 
           {result && <Result result={result} answers={answers} onRestart={restart} />}
         </section>
 
         <aside className="aside">
-          <h3>What we&apos;re weighing</h3>
+          <h3>What we're weighing</h3>
           <p>AI does not take responsibility for a filing. The firm must keep judgment, supervision, and verification in the workflow.</p>
           {[
             ["Motion and task", "Routine boilerplate is different from citation-heavy, dispositive, or emergency argument."],
@@ -326,13 +350,14 @@ function Result({ result, answers, onRestart }: { result: LeafNode; answers: Ans
     : result.riskLevel === "RED"
       ? "Keep substantive drafting human-led unless the safeguards below are in place."
       : "Use AI only with enhanced safeguards and full independent verification.";
+  // Only warn about a factor if the question was actually asked (answers[key] exists).
   const extraActions = [
-    answers.jurisdictionSpecificity !== "yes" && "Confirm the tool reflects current local rules, practice-area authority, and judge-specific preferences.",
-    answers.disclosure !== "yes" && "Check the current judge and jurisdiction rules for AI disclosure or certification before filing.",
-    answers.competence !== "yes" && "Do not proceed until the responsible attorney can competently supervise the tool and its limitations.",
+    answers.jurisdictionSpecificity && answers.jurisdictionSpecificity !== "yes" && "Confirm the tool reflects current local rules, practice-area authority, and judge-specific preferences.",
+    answers.disclosure && answers.disclosure !== "yes" && "Check the current judge and jurisdiction rules for AI disclosure or certification before filing.",
+    answers.competence && answers.competence !== "yes" && "Do not proceed until the responsible attorney can competently supervise the tool and its limitations.",
     answers.taskScope === "substantive" && "Treat generated legal argument as untrusted draft text and independently verify every claim.",
-    answers.operations !== "yes" && "Confirm the expected time savings and workflow integration justify the firm's cost and learning investment.",
-    answers.liability !== "yes" && "Ask the malpractice carrier and review client/billing agreements for AI-related requirements.",
+    answers.operations && answers.operations !== "yes" && "Confirm the expected time savings and workflow integration justify the firm's cost and learning investment.",
+    answers.liability && answers.liability !== "yes" && "Ask the malpractice carrier and review client/billing agreements for AI-related requirements.",
   ].filter((action): action is string => Boolean(action));
 
   function downloadPlan() {
