@@ -253,11 +253,18 @@ export function MotionDecisionWizard() {
           <h2>Tell us what you&apos;re working with.</h2>
           <p className="sub">Choose one answer in each section. You can scroll back and change any response before viewing the recommendation.</p>
 
-          {Object.entries(groupedQuestions).map(([section, sectionQuestions]) => (
+          {Object.entries(groupedQuestions).map(([section, sectionQuestions], sectionIndex) => (
             <section className="question-section" key={section}>
-              <div className="section-label">{section}</div>
-              {sectionQuestions.map((question) => (
+              <div className="section-heading">
+                <span className="section-number">0{sectionIndex + 1}</span>
+                <div>
+                  <div className="section-label">{section}</div>
+                  <p>{sectionQuestions.length} questions</p>
+                </div>
+              </div>
+              {sectionQuestions.map((question, questionIndex) => (
                 <fieldset className="field" id={`question-${question.id}`} key={question.id}>
+                  <div className="question-meta">Question {String(questionIndex + 1).padStart(2, "0")}</div>
                   <legend>{question.prompt}</legend>
                   {question.helper && <p className="hint">{question.helper}</p>}
                   <div className="options">
@@ -270,7 +277,7 @@ export function MotionDecisionWizard() {
                           type="radio"
                           value={option.value}
                         />
-                        {option.label}
+                        <span>{option.label}</span>
                       </label>
                     ))}
                   </div>
